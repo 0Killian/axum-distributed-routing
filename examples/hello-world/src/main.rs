@@ -7,7 +7,7 @@ use axum_distributed_routing::route_group;
 route_group!(Routes, ());
 
 // You can nest groups
-route_group!(Api, (), Routes, "/api");
+route_group!(pub Api, (), Routes, "/api");
 
 route!(
     group = Routes,
