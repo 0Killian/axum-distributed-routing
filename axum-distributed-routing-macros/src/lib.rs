@@ -1,19 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use syn::{
-    Block, Field, Ident, LitStr, PatType, Token, Type,
-    ext::IdentExt,
-    parenthesized,
-    parse::{Parse, ParseStream},
-    parse_macro_input,
-    punctuated::Punctuated,
+    ext::IdentExt, parenthesized, parse::Parse, parse_macro_input, punctuated::Punctuated, Attribute, Block, Ident, LitStr, PatType, Token, Type
 };
-
-/// Either a block with members or a type name
-enum TypeNameOrDef {
-    Type(Type),
-    Def(Punctuated<Field, Token![,]>),
-}
 
 enum Method {
     Get,
@@ -30,30 +19,15 @@ enum Method {
 struct Args {
     path: String,
     path_params: HashMap<Ident, Type>,
-    query_params: Option<TypeNameOrDef>,
-    body_params: Option<TypeNameOrDef>,
+    query_params: Option<Type>,
+    body_params: Option<Type>,
     parameters: Punctuated<PatType, Token![,]>,
     name: Ident,
     group: Type,
     return_type: Type,
     method: Method,
-    is_async: bool,
+    handler_attributes: Vec<Attribute>,
     handler: Block,
-}
-
-impl Parse for TypeNameOrDef {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(syn::token::Brace) {
-            let content;
-            let _ = syn::braced!(content in input);
-            Ok(TypeNameOrDef::Def(Punctuated::parse_terminated_with(
-                &content,
-                Field::parse_named,
-            )?))
-        } else {
-            Ok(TypeNameOrDef::Type(input.parse()?))
-        }
-    }
 }
 
 impl Parse for Args {
@@ -66,83 +40,98 @@ impl Parse for Args {
         let mut name = None;
         let mut return_type = None;
         let mut handler = None;
-        let mut is_async = false;
         let mut method = None;
         let mut group = None;
+        let mut handler_attributes = Vec::new();
 
         while !input.is_empty() {
-            let ident: Ident = input.call(Ident::parse_any)?;
+            if input.peek(Token![#]) || input.peek(Token![async]) {
+                if handler.is_some() {
+                    return Err(syn::Error::new(
+                        input.span(),
+                        "Handler is already defined",
+                    ));
+                }
 
-            match ident.to_string().as_str() {
-                "method" => {
-                    // Expects equal sign
-                    input.parse::<syn::Token![=]>()?;
+                handler_attributes = input.call(Attribute::parse_outer)?;
+                input.parse::<Token![async]>()?;
 
-                    let method_ident = input.parse::<Ident>()?;
-                    match method_ident.to_string().as_str() {
-                        "GET" => method = Some(Method::Get),
-                        "POST" => method = Some(Method::Post),
-                        "PUT" => method = Some(Method::Put),
-                        "PATCH" => method = Some(Method::Patch),
-                        "DELETE" => method = Some(Method::Delete),
-                        "HEAD" => method = Some(Method::Head),
-                        "OPTIONS" => method = Some(Method::Options),
-                        "TRACE" => method = Some(Method::Trace),
-                        "CONNECT" => method = Some(Method::Connect),
-                        m => {
-                            return Err(syn::Error::new(
-                                proc_macro2::Span::call_site(),
-                                format!("Unknown method {}", m),
-                            ));
+                name = Some(input.parse()?);
+                
+                if input.peek(syn::token::Paren) {
+                    let content;
+                    let _ = parenthesized!(content in input);
+                    parameters = Punctuated::parse_terminated(&content)?;
+                }
+
+                if input.peek(Token![->]) {
+                    input.parse::<Token![->]>()?;
+                    return_type = Some(input.parse()?);
+                }
+                handler = Some(input.parse()?);
+            } else {
+                let ident: Ident = input.call(Ident::parse_any)?;
+
+                match ident.to_string().as_str() {
+                    "method" => {
+                        // Expects equal sign
+                        input.parse::<syn::Token![=]>()?;
+
+                        let method_ident = input.parse::<Ident>()?;
+                        match method_ident.to_string().as_str() {
+                            "GET" => method = Some(Method::Get),
+                            "POST" => method = Some(Method::Post),
+                            "PUT" => method = Some(Method::Put),
+                            "PATCH" => method = Some(Method::Patch),
+                            "DELETE" => method = Some(Method::Delete),
+                            "HEAD" => method = Some(Method::Head),
+                            "OPTIONS" => method = Some(Method::Options),
+                            "TRACE" => method = Some(Method::Trace),
+                            "CONNECT" => method = Some(Method::Connect),
+                            m => {
+                                return Err(syn::Error::new(
+                                    proc_macro2::Span::call_site(),
+                                    format!("Unknown method {}", m),
+                                ));
+                            }
                         }
                     }
-                }
-                "group" => {
-                    // Expects equal sign
-                    input.parse::<syn::Token![=]>()?;
+                    "group" => {
+                        // Expects equal sign
+                        input.parse::<syn::Token![=]>()?;
 
-                    group = Some(input.parse()?);
-                }
-                "path" => {
-                    // Expects equal sign
-                    input.parse::<syn::Token![=]>()?;
-
-                    let path_str: LitStr = input.parse()?;
-                    let (path_, path_params_) = Self::parse_path(path_str.value())?;
-                    path = Some(path_);
-                    path_params = path_params_;
-                }
-                "query" => {
-                    // Expects equal sign
-                    input.parse::<syn::Token![=]>()?;
-
-                    query_params = Some(input.parse::<TypeNameOrDef>()?);
-                }
-                "body" => {
-                    // Expects equal sign
-                    input.parse::<syn::Token![=]>()?;
-
-                    body_params = Some(input.parse::<TypeNameOrDef>()?);
-                }
-                _ => {
-                    if ident.to_string().as_str() == "async" {
-                        is_async = true;
-                        name = Some(input.parse()?);
-                    } else {
-                        name = Some(ident);
+                        group = Some(input.parse()?);
                     }
+                    "path" => {
+                        // Expects equal sign
+                        input.parse::<syn::Token![=]>()?;
 
-                    if input.peek(syn::token::Paren) {
-                        let content;
-                        let _ = parenthesized!(content in input);
-                        parameters = Punctuated::parse_terminated(&content)?;
+                        let path_str: LitStr = input.parse()?;
+                        let (path_, path_params_) = Self::parse_path(path_str)?;
+                        path = Some(path_);
+                        path_params = path_params_;
                     }
+                    "query" => {
+                        // Expects equal sign
+                        input.parse::<syn::Token![=]>()?;
 
-                    if input.peek(Token![->]) {
-                        input.parse::<Token![->]>()?;
-                        return_type = Some(input.parse()?);
+                        query_params = Some(input.parse()?);
                     }
-                    handler = Some(input.parse()?);
+                    "body" => {
+                        // Expects equal sign
+                        input.parse::<syn::Token![=]>()?;
+
+                        body_params = Some(input.parse()?);
+                    }
+                    _ => {
+                        return Err(syn::Error::new(
+                            ident.span(),
+                            format!(
+                                "Unknown attribute '{}'. Allowed attributes are: 'method', 'group', 'path', 'query', 'body'.",
+                                ident
+                            ),
+                        ));
+                    }
                 }
             }
 
@@ -196,9 +185,9 @@ impl Parse for Args {
         Ok(Args {
             name: name.unwrap(),
             return_type: return_type.unwrap(),
-            is_async,
             group: group.unwrap(),
             method: method.unwrap(),
+            handler_attributes,
             handler: handler.unwrap(),
             path: path.unwrap(),
             path_params,
@@ -217,7 +206,8 @@ enum ParsePathState {
 }
 
 impl Args {
-    fn parse_path(path: String) -> syn::Result<(String, HashMap<Ident, Type>)> {
+    fn parse_path(literal: LitStr) -> syn::Result<(String, HashMap<Ident, Type>)> {
+        let path = literal.value();
         let mut real_path = String::new();
         let mut path_params = HashMap::new();
         let mut state = ParsePathState::Path;
@@ -231,8 +221,8 @@ impl Args {
                         state = ParsePathState::PathParamName;
                     } else {
                         return Err(syn::Error::new(
-                            proc_macro2::Span::call_site(),
-                            "Invalid path",
+                            literal.span(),
+                            "Expected one of character, `:` or `}`, found `{`",
                         ));
                     }
                 }
@@ -240,11 +230,11 @@ impl Args {
                     if state == ParsePathState::PathParamType {
                         let param_name = proc_macro2::TokenStream::from_str(&current_name)
                             .map_err(|_| {
-                                syn::Error::new(proc_macro2::Span::call_site(), "Invalid path")
+                                syn::Error::new(literal.span(), "Invalid path parameter name")
                             })?;
                         let param_type = proc_macro2::TokenStream::from_str(&current_type)
                             .map_err(|_| {
-                                syn::Error::new(proc_macro2::Span::call_site(), "Invalid path")
+                                syn::Error::new(proc_macro2::Span::call_site(), "Invalid path parameter type")
                             })?;
                         path_params.insert(syn::parse2(param_name)?, syn::parse2(param_type)?);
 
@@ -254,20 +244,30 @@ impl Args {
                         current_name = String::new();
                         current_type = String::new();
                         state = ParsePathState::Path;
+                    } else if state == ParsePathState::PathParamName {
+                        return Err(syn::Error::new(
+                            literal.span(),
+                            "Expected one of character or `:`, found `}`",
+                        ));
                     } else {
                         return Err(syn::Error::new(
-                            proc_macro2::Span::call_site(),
-                            "Invalid path",
+                            literal.span(),
+                            "Expected one of character or `{`, found `}`",
                         ));
                     }
                 }
                 ':' => {
                     if state == ParsePathState::PathParamName {
                         state = ParsePathState::PathParamType;
+                    } else if state != ParsePathState::Path {
+                        return Err(syn::Error::new(
+                            literal.span(),
+                            "Expected one of character or `{`, found `:`",
+                        ));
                     } else {
                         return Err(syn::Error::new(
-                            proc_macro2::Span::call_site(),
-                            "Invalid path",
+                            literal.span(),
+                            "Expected one of character or `}`, found `:`",
                         ));
                     }
                 }
@@ -287,8 +287,8 @@ impl Args {
 
         if state != ParsePathState::Path {
             return Err(syn::Error::new(
-                proc_macro2::Span::call_site(),
-                "Invalid path",
+                literal.span(),
+                "Expected one of character or `}`, found EOF",
             ));
         }
 
@@ -324,60 +324,16 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let (query_params_def, query_params) = if let Some(q) = args.query_params {
-        match q {
-            TypeNameOrDef::Type(t) => (
-                quote::quote! {},
-                quote::quote! { axum::extract::Query(query): axum::extract::Query<#t>, },
-            ),
-            TypeNameOrDef::Def(d) => {
-                let def_name = Ident::new(
-                    format!(
-                        "{}QueryParams",
-                        stringcase::pascal_case(args.name.to_string().as_str())
-                    )
-                    .as_str(),
-                    proc_macro2::Span::call_site(),
-                );
-                (
-                    quote::quote! {
-                        #[derive(serde::Deserialize)]
-                        struct #def_name #d
-                    },
-                    quote::quote! { axum::extract::Query(query): axum::extract::Query<#def_name>, },
-                )
-            }
-        }
+    let query_params = if let Some(q) = args.query_params {
+        quote::quote! { axum::extract::Query(query): axum::extract::Query<#q>, }
     } else {
-        (quote::quote! {}, quote::quote! {})
+        quote::quote! {}
     };
 
-    let (body_params_def, body_params) = if let Some(b) = args.body_params {
-        match b {
-            TypeNameOrDef::Type(t) => (
-                quote::quote! {},
-                quote::quote! { axum::extract::Form(body): axum::extract::Form<#t>, },
-            ),
-            TypeNameOrDef::Def(d) => {
-                let def_name = Ident::new(
-                    format!(
-                        "{}BodyParams",
-                        stringcase::pascal_case(args.name.to_string().as_str())
-                    )
-                    .as_str(),
-                    proc_macro2::Span::call_site(),
-                );
-                (
-                    quote::quote! {
-                        #[derive(serde::Deserialize)]
-                        struct #def_name #d
-                    },
-                    quote::quote! { axum::extract::Form(body): axum::extract::Form<#def_name>, },
-                )
-            }
-        }
+    let body_params = if let Some(b) = args.body_params {
+        quote::quote! { body: #b, }
     } else {
-        (quote::quote! {}, quote::quote! {})
+        quote::quote! {}
     };
 
     let route_name = Ident::new(
@@ -387,37 +343,33 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
         ),
         proc_macro2::Span::call_site(),
     );
+    let name = args.name;
     let path = args.path;
     let parameters = args.parameters;
     let return_type = args.return_type;
     let block = args.handler;
     let group = args.group;
+    let handler_attributes = args.handler_attributes;
 
-    let async_keyword = if args.is_async {
-        quote::quote! { async }
-    } else {
-        quote::quote! {}
-    };
-
-    let handler = quote::quote! {
-        #async_keyword |#path_params #query_params #body_params #parameters| -> #return_type #block
+    let handler_def = quote::quote! {
+        #(#handler_attributes)*
+        async fn #name(#path_params #query_params #body_params #parameters) -> #return_type #block
     };
 
     let handler = match args.method {
-        Method::Get => quote::quote! { axum::routing::get(#handler) },
-        Method::Post => quote::quote! { axum::routing::post(#handler) },
-        Method::Put => quote::quote! { axum::routing::put(#handler) },
-        Method::Patch => quote::quote! { axum::routing::patch(#handler) },
-        Method::Delete => quote::quote! { axum::routing::delete(#handler) },
-        Method::Head => quote::quote! { axum::routing::head(#handler) },
-        Method::Options => quote::quote! { axum::routing::options(#handler) },
-        Method::Trace => quote::quote! { axum::routing::trace(#handler) },
-        Method::Connect => quote::quote! { axum::routing::connect(#handler) },
+        Method::Get => quote::quote! { axum::routing::get(#name) },
+        Method::Post => quote::quote! { axum::routing::post(#name) },
+        Method::Put => quote::quote! { axum::routing::put(#name) },
+        Method::Patch => quote::quote! { axum::routing::patch(#name) },
+        Method::Delete => quote::quote! { axum::routing::delete(#name) },
+        Method::Head => quote::quote! { axum::routing::head(#name) },
+        Method::Options => quote::quote! { axum::routing::options(#name) },
+        Method::Trace => quote::quote! { axum::routing::trace(#name) },
+        Method::Connect => quote::quote! { axum::routing::connect(#name) },
     };
 
     let result = quote::quote! {
-        #query_params_def
-        #body_params_def
+        #handler_def
 
         pub static #route_name: #group = #group::new(#path, |r, _| r.route(#path, #handler));
 
