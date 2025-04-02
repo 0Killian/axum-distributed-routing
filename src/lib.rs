@@ -30,15 +30,15 @@ pub trait Route {
 /// parent group and the subpath as the third and fourth arguments
 #[macro_export]
 macro_rules! route_group {
-    ($name:ident, $type:ty, $parent:ident, $path:literal) => {
-        $crate::route_group!($name, $type);
+    ($vis:vis $name:ident, $type:ty, $parent:ident, $path:literal) => {
+        $crate::route_group!($vis $name, $type);
         $crate::inventory::submit!($parent::new($path, |router, level| {
             router.nest($path, $crate::create_router::<$name>(level + 4))
         }));
     };
-    ($name:ident, $type:ty) => {
+    ($vis:vis $name:ident, $type:ty) => {
         #[derive(Copy, Clone, Debug)]
-        struct $name {
+        $vis struct $name {
             path: &'static str,
             handler: fn(axum::routing::Router<$type>, usize) -> axum::routing::Router<$type>,
         }
