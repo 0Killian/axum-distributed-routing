@@ -90,7 +90,7 @@ impl Parse for Args {
                             "CONNECT" => method = Some(Method::Connect),
                             m => {
                                 return Err(syn::Error::new(
-                                    proc_macro2::Span::call_site(),
+                                    ident.span(),
                                     format!("Unknown method {}", m),
                                 ));
                             }
@@ -234,7 +234,7 @@ impl Args {
                             })?;
                         let param_type = proc_macro2::TokenStream::from_str(&current_type)
                             .map_err(|_| {
-                                syn::Error::new(proc_macro2::Span::call_site(), "Invalid path parameter type")
+                                syn::Error::new(literal.span(), "Invalid path parameter type")
                             })?;
                         path_params.insert(syn::parse2(param_name)?, syn::parse2(param_type)?);
 
