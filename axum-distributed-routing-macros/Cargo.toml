@@ -2,6 +2,15 @@
 name = "axum-distributed-routing-macros"
 version = "0.1.0"
 edition = "2024"
+description = """
+Distributed routing macros for axum
+"""
+authors = ["Killian Bellouard <killianbellouard@gmail.com>"]
+license = "MIT"
+keywords = ["axum", "routing"]
+repository = "https://github.com/0Killian/axum-distributed-routing.git"
+homepage = "https://github.com/0Killian/axum-distributed-routing.git"
+readme = "../README.md"
 
 [lib]
 proc-macro = true
