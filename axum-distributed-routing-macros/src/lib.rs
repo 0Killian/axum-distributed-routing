@@ -353,7 +353,7 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let handler_def = quote::quote! {
         #(#handler_attributes)*
-        async fn #name(#path_params #query_params #body_params #parameters) -> #return_type #block
+        async fn #name(#path_params #query_params #parameters #body_params) -> #return_type #block
     };
 
     let handler = match args.method {
