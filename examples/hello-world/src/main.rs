@@ -1,7 +1,9 @@
 use axum::http::StatusCode;
+use axum::Json;
 use axum_distributed_routing::create_router;
 use axum_distributed_routing::route;
 use axum_distributed_routing::route_group;
+use serde::Deserialize;
 
 // Create the root route group
 route_group!(Routes, ());
@@ -9,11 +11,41 @@ route_group!(Routes, ());
 // You can nest groups
 route_group!(pub Api, (), Routes, "/api");
 
+#[derive(Deserialize)]
+pub struct ExprQuery {
+    pub times: i32,
+}
+
+#[derive(Deserialize)]
+pub struct ExprBody {
+    pub plus: i32,
+}
+
+// Create a route
 route!(
     group = Routes,
-    path = "/echo/{str:String}",
     method = GET,
-    async test_fn -> String { str }
+
+    // You can define path parameters...
+    path = "/expr/{val:i32}",
+
+    // ...query parameters...
+    query = ExprQuery,
+
+    // ...and body parameters.
+    body = Json<ExprBody>,
+
+    // You can also add attributes to the handler
+    #[axum::debug_handler]
+    async test_fn -> String {
+        format!(
+            "{} * {} + {} = {}",
+            val,
+            query.times,
+            body.plus,
+            val * query.times + body.plus
+        )
+    }
 );
 
 route!(

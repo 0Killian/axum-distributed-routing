@@ -24,6 +24,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "de45108900e1f9b9242f7f2e254aa3e2c029c921c258fe9e6b4217eeebd54288"
 dependencies = [
  "axum-core",
+ "axum-macros",
  "bytes",
  "form_urlencoded",
  "futures-util",
@@ -73,7 +74,7 @@ dependencies = [
 
 [[package]]
 name = "axum-distributed-routing"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "axum",
  "axum-distributed-routing-macros",
@@ -82,11 +83,22 @@ dependencies = [
 
 [[package]]
 name = "axum-distributed-routing-macros"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro2",
  "quote",
  "stringcase",
+ "syn",
+]
+
+[[package]]
+name = "axum-macros"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "604fde5e028fea851ce1d8570bbdc034bec850d157f7569d10f347d06808c05c"
+dependencies = [
+ "proc-macro2",
+ "quote",
  "syn",
 ]
 
@@ -173,11 +185,12 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
 name = "hello_world"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "axum",
  "axum-distributed-routing",
  "linkme",
+ "serde",
  "tokio",
 ]
 
