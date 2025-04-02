@@ -21,5 +21,5 @@ readme = "README.md"
 [dependencies]
 axum = "0.8.1"
 inventory = "0.3.20"
-axum-distributed-routing-macros = { path = "./axum-distributed-routing-macros" }
+axum-distributed-routing-macros = { path = "./axum-distributed-routing-macros", version = "0.1.0" }
 
