@@ -345,7 +345,13 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
     );
     let name = args.name;
     let path = args.path;
-    let parameters = args.parameters;
+    let parameters = if !args.parameters.trailing_punct() && !args.parameters.is_empty() {
+        let parameters = args.parameters;
+        quote::quote! { #parameters, }
+    } else {
+        let parameters = args.parameters;
+        quote::quote! { #parameters }
+    };
     let return_type = args.return_type;
     let block = args.handler;
     let group = args.group;
@@ -353,7 +359,7 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let handler_def = quote::quote! {
         #(#handler_attributes)*
-        async fn #name(#path_params #query_params #body_params #parameters) -> #return_type #block
+        async fn #name(#path_params #query_params #parameters #body_params) -> #return_type #block
     };
 
     let handler = match args.method {
