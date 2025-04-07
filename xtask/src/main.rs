@@ -52,7 +52,7 @@ pub fn coverage() -> Result<()> {
 
     println!("=== generating report ===");
     let result = cmd!(
-        "./grcov",
+        "grcov",
         ".",
         "-t",
         "cobertura,html",
