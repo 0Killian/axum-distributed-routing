@@ -1,5 +1,5 @@
-use axum::http::StatusCode;
 use axum::Json;
+use axum::http::StatusCode;
 use axum_distributed_routing::create_router;
 use axum_distributed_routing::route;
 use axum_distributed_routing::route_group;
