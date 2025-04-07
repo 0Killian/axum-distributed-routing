@@ -67,8 +67,7 @@ pub fn coverage() -> Result<()> {
         "--branch",
         "--ignore-not-existing",
         "--keep-only",
-        "src/*",
-        "axum-distributed-routing-macros/src/*",
+        "src/*,axum-distributed-routing-macros/src/*",
         "-o",
         "coverage/"
     )
