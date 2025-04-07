@@ -30,7 +30,6 @@ jobs:
           chmod +x grcov
           mkdir -p $HOME/.local/bin
           mv grcov $HOME/.local/bin/
-          echo "::add-path::$HOME/.local/bin"
           grcov --version
       - run: cargo xtask coverage
       - run: |
