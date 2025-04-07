@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_publish:
+        description: 'Run the publish job?'
+        type: boolean
+        required: true
+        default: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: llvm-tools
+      - run: sudo apt-get update && sudo apt-get install libxml2-utils -y
+      - run: |
+          curl -sL https://github.com/mozilla/grcov/releases/download/v0.8.19/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
+          chmod +x grcov
+          mkdir -p $HOME/.local/bin
+          mv grcov $HOME/.local/bin/
+          grcov --version
+      - run: cargo xtask coverage
+      - run: |
+          xmllint --xpath "concat('Coverage: ', 100 * string(//coverage/@line-rate), '%')" coverage/cobertura.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: true
+          files: coverage/cobertura.xml
+          flags: unittests
+          name: codecov-umbrella
+          token: ${{ secrets.CODECOV_TOKEN }} # required
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [check, test]
+    if: github.event.inputs.run_publish == true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-rust@v4
+      - run: cargo login ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - run: cd axum-distributed-routing && cargo publish
+      - run: cd ../ && cargo publish

@@ -2,6 +2,7 @@
 members = [
 	"./examples/*",
 	"./axum-distributed-routing-macros",
+	"./xtask"
 ]
 
 [package]
