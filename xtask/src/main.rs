@@ -1,6 +1,6 @@
 use std::fs::create_dir_all;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use xtaskops::ops::{clean_files, cmd, remove_dir};
 
@@ -29,11 +29,19 @@ pub fn coverage() -> Result<()> {
     remove_dir("coverage")?;
     create_dir_all("coverage")?;
 
-    let max_threads = std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1);
+    let max_threads = std::thread::available_parallelism()
+        .map(|t| t.get())
+        .unwrap_or(1);
 
     println!("=== running coverage ===");
 
-    let cmd_test = cmd!("cargo", "test", "--target-dir", "coverage-target", "--all-features");
+    let cmd_test = cmd!(
+        "cargo",
+        "test",
+        "--target-dir",
+        "coverage-target",
+        "--all-features"
+    );
 
     cmd_test
         .env("CARGO_INCREMENTAL", "0")
