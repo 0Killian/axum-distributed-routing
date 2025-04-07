@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_publish:
+        description: 'Run the publish job?'
+        type: boolean
+        required: true
+        default: false
 
 jobs:
   check:
@@ -42,13 +49,12 @@ jobs:
           files: coverage/cobertura.xml
           flags: unittests
           name: codecov-umbrella
-          path_to_write_report: # optional
           token: ${{ secrets.CODECOV_TOKEN }} # required
 
   publish:
     runs-on: ubuntu-latest
     needs: [check, test]
-    if: github.ref == 'refs/heads/main'
+    if: github.event.inputs.run_publish == true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-rust@v4
