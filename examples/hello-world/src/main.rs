@@ -1,12 +1,13 @@
 use axum::http::StatusCode;
 use axum::Json;
 use axum_distributed_routing::create_router;
+use axum_distributed_routing::openapi_specification;
 use axum_distributed_routing::route;
 use axum_distributed_routing::route_group;
 use serde::Deserialize;
 
 // Create the root route group
-route_group!(Routes, ());
+route_group!(pub Routes, ());
 
 // You can nest groups
 route_group!(pub Api, (), Routes, "/api");
@@ -58,7 +59,7 @@ route!(
 #[tokio::main]
 async fn main() {
     // Create the router by calling `create_router!` with the root group
-    let router = create_router!(Routes);
+    let router = openapi_specification(create_router!(Routes), "/openapi.json");
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await

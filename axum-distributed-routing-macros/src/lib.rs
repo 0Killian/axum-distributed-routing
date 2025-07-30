@@ -1,7 +1,9 @@
+//pub mod openapi;
 use std::{collections::HashMap, str::FromStr};
 
 use syn::{
-    ext::IdentExt, parenthesized, parse::Parse, parse_macro_input, punctuated::Punctuated, Attribute, Block, Ident, LitStr, PatType, Token, Type
+    Attribute, Block, Ident, LitStr, PatType, Token, Type, ext::IdentExt, parenthesized,
+    parse::Parse, punctuated::Punctuated,parse_macro_input, 
 };
 
 enum Method {
@@ -325,7 +327,7 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     let query_params = if let Some(q) = args.query_params {
-        quote::quote! { axum::extract::Query(query): axum::extract::Query<#q>, }
+        quote::quote! { axum::extract::Query(query): axum::extract::Query<#q> }
     } else {
         quote::quote! {}
     };
@@ -336,11 +338,14 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
         quote::quote! {}
     };
 
-    let route_name = Ident::new(
-        &format!(
-            "ROUTE_{}",
-            stringcase::macro_case(args.name.to_string().as_str())
-        ),
+    let route_name = format!(
+        "ROUTE_{}",
+        stringcase::macro_case(args.name.to_string().as_str())
+    );
+
+    let route_name_ident = Ident::new(&route_name, proc_macro2::Span::call_site());
+    let openapi_route_name = Ident::new(
+        &format!("_OPENAPI_{}", route_name),
         proc_macro2::Span::call_site(),
     );
     let name = args.name;
@@ -374,13 +379,42 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Method::Connect => quote::quote! { axum::routing::connect(#name) },
     };
 
+    let method = match args.method {
+        Method::Get => quote::quote! { axum::http::Method::GET },
+        Method::Post => quote::quote! { axum::http::Method::POST },
+        Method::Put => quote::quote! { axum::http::Method::PUT },
+        Method::Patch => quote::quote! { axum::http::Method::PATCH },
+        Method::Delete => quote::quote! { axum::http::Method::DELETE },
+        Method::Head => quote::quote! { axum::http::Method::HEAD },
+        Method::Options => quote::quote! { axum::http::Method::OPTIONS },
+        Method::Trace => quote::quote! {  axum::http::Method::TRACE },
+        Method::Connect => quote::quote! { axum::http::Method::CONNECT },
+    };
+
     let result = quote::quote! {
         #handler_def
 
-        pub static #route_name: #group = #group::new(#path, |r, _| r.route(#path, #handler));
+        pub static #route_name_ident: #group = #group::new(#path, |r, _| r.route(#path, #handler));
+        pub static #openapi_route_name: axum_distributed_routing::openapi::EndpointSpecification = axum_distributed_routing::openapi::EndpointSpecification {
+            operation_id: #route_name,
+            path: #path,
+            method: #method,
+            summary: "",
+            description: None,
+            parameters: &[],
+            responses: &[axum_distributed_routing::openapi::Response {
+                status_code: "200",
+                description: "",
+                content: vec![],
+            }],
+        };
 
         axum_distributed_routing::inventory::submit! {
-            #route_name
+            #route_name_ident
+        }
+
+        axum_distributed_routing::inventory::submit! {
+            &#openapi_route_name
         }
     };
 

@@ -3,6 +3,9 @@ pub use inventory;
 
 use axum::routing::Router;
 
+pub mod openapi;
+pub mod schema;
+
 /// A trait for defining a route. All routes must implement this trait
 ///
 /// A route is not necessarily an HTTP route, it could be anything that can be
@@ -46,7 +49,7 @@ macro_rules! route_group {
         impl $name {
             pub const fn new(
                 path: &'static str,
-                handler: fn(axum::routing::Router<$type>, usize) -> axum::routing::Router<$type>,
+                handler: fn(axum::routing::Router<$type>, usize) -> axum::routing::Router<$type>
             ) -> Self {
                 Self { path, handler }
             }
@@ -98,6 +101,20 @@ where
         router = route.attach(router, level);
     }
     router
+}
+
+/// Generates and adds an OpenAPI Json endpoint to the router
+pub fn openapi_specification<T: Clone + Send + Sync + 'static>(
+    router: Router<T>,
+    path: &str,
+) -> Router<T> {
+    async fn handler() -> axum::response::Json<openapi::OpenApiDocument> {
+        axum::response::Json(openapi::generate_specification())
+    }
+
+    println!("{:#?}", openapi::generate_specification());
+
+    router.route(path, axum::routing::get(handler))
 }
 
 // TODO: tests

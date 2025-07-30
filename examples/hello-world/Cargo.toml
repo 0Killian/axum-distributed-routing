@@ -10,3 +10,4 @@ linkme = "0.3.32"
 axum-distributed-routing = { path = "../../" }
 tokio = { version = "1.44.1", features = ["rt-multi-thread"] }
 serde = { version = "1.0.219", features = ["derive"] }
+openapi = "0.1.5"
