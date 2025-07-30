@@ -57,7 +57,7 @@ jobs:
     if: github.event.inputs.run_publish == 'true'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-rust@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo login ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      - run: cd axum-distributed-routing && cargo publish
+      - run: cd axum-distributed-routing-macros && cargo publish
       - run: cd ../ && cargo publish
