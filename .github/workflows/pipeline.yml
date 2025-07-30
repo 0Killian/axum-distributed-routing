@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       run_publish:
-        description: 'Run the publish job?'
+        description: "Run the publish job?"
         type: boolean
         required: true
         default: false
@@ -54,7 +54,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: [check, test]
-    if: github.event.inputs.run_publish == true
+    if: github.event.inputs.run_publish == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-rust@v4
