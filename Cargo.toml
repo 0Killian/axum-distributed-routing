@@ -7,7 +7,7 @@ members = [
 
 [package]
 name = "axum-distributed-routing"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 description = """
 Distributed routing for axum
@@ -23,4 +23,3 @@ readme = "README.md"
 axum = "0.8.1"
 inventory = "0.3.20"
 axum-distributed-routing-macros = { path = "./axum-distributed-routing-macros", version = "0.1.0" }
-

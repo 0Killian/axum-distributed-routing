@@ -89,7 +89,7 @@ impl Parse for Args {
                             m => {
                                 return Err(syn::Error::new(
                                     ident.span(),
-                                    format!("Unknown method {}", m),
+                                    format!("Unknown method {m}"),
                                 ));
                             }
                         }
@@ -125,8 +125,7 @@ impl Parse for Args {
                         return Err(syn::Error::new(
                             ident.span(),
                             format!(
-                                "Unknown attribute '{}'. Allowed attributes are: 'method', 'group', 'path', 'query', 'body'.",
-                                ident
+                                "Unknown attribute '{ident}'. Allowed attributes are: 'method', 'group', 'path', 'query', 'body'.",
                             ),
                         ));
                     }
@@ -323,7 +322,7 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     let query_params = if let Some(q) = args.query_params {
-        quote::quote! { axum::extract::Query(query): axum::extract::Query<#q>, }
+        quote::quote! { query: #q, }
     } else {
         quote::quote! {}
     };
