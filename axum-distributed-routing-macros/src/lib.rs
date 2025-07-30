@@ -1,7 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use syn::{
-    ext::IdentExt, parenthesized, parse::Parse, parse_macro_input, punctuated::Punctuated, Attribute, Block, Ident, LitStr, PatType, Token, Type
+    Attribute, Block, Ident, LitStr, PatType, Token, Type, ext::IdentExt, parenthesized,
+    parse::Parse, parse_macro_input, punctuated::Punctuated,
 };
 
 enum Method {
@@ -47,17 +48,14 @@ impl Parse for Args {
         while !input.is_empty() {
             if input.peek(Token![#]) || input.peek(Token![async]) {
                 if handler.is_some() {
-                    return Err(syn::Error::new(
-                        input.span(),
-                        "Handler is already defined",
-                    ));
+                    return Err(syn::Error::new(input.span(), "Handler is already defined"));
                 }
 
                 handler_attributes = input.call(Attribute::parse_outer)?;
                 input.parse::<Token![async]>()?;
 
                 name = Some(input.parse()?);
-                
+
                 if input.peek(syn::token::Paren) {
                     let content;
                     let _ = parenthesized!(content in input);
@@ -325,7 +323,7 @@ pub fn route(attr: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     let query_params = if let Some(q) = args.query_params {
-        quote::quote! { axum::extract::Query(query): axum::extract::Query<#q>, }
+        quote::quote! { query: #q, }
     } else {
         quote::quote! {}
     };
